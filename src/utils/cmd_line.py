@@ -11,6 +11,9 @@ parser.add_argument('-e', '--epoch', default=100, type=int, help="Number of Epoc
 parser.add_argument('-lr', '--learning_rate', default=1e-2, type=float, help="Learning rate")
 parser.add_argument('-rlr', '--r_learning_rate', default=1e-2, type=float, help="Learning rate for ISTA")
 parser.add_argument('-lmda', '--reg', default=5e-3, type=float, help="LSTM hidden size")
+# misc
+parser.add_argument('--root_path', default='./', help="root path for FolderDataset")
+parser.add_argument('--device_name', default='cuda:0', help="torch device")
 
 
 # Parse arguments

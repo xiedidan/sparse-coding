@@ -15,11 +15,11 @@ from src.scripts.plotting import plot_rf
 board = SummaryWriter("../../runs/sparse-net")
 arg = parse_args()
 # if use cuda
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device(arg.device_name)
 # create net
 sparse_net = SparseNet(arg.n_neuron, arg.size, R_lr=arg.r_learning_rate, lmda=arg.reg, device=device)
 # load data
-dataloader = DataLoader(FolderPatchDataset(arg.batch_size, arg.size, arg.size), batch_size=250)
+dataloader = DataLoader(FolderPatchDataset(arg.size, arg.size, N=arg.batch_size, folder=arg.root_path), batch_size=250)
 # train
 optim = torch.optim.SGD([{'params': sparse_net.U.weight, "lr": arg.learning_rate}])
 for e in range(arg.epoch):
