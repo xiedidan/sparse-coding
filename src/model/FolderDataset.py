@@ -18,7 +18,7 @@ def crop_img(img, w=128, h=128, N=0, border=4, width=10, height=10):
         y = np.random.randint(border, h - height - border)
 
         crop = img[x:x+width, y:y+height].copy()
-        
+
         patches[j, :, :] = crop - crop.mean()
         
     return patches
@@ -75,15 +75,15 @@ class FolderPatchDataset(Dataset):
                 width=self.width, height=self.height
             )
             
-            pool = mp.Pool()
+            pool = mp.Pool(8)
 
-            self.images = list(tqdm(
+            images = list(tqdm(
                 pool.imap_unordered(crop_wrapper, imgs),
                 total=len(imgs),
                 file=sys.stdout
             ))
             
-            self.images = torch.from_numpy(np.concatenate(self.images))
+            self.images = torch.from_numpy(np.concatenate(images)) / 255.
         else:
             for img in tqdm(imgs):
                 cols = (w - 2 * self.border) // self.width
@@ -99,6 +99,6 @@ class FolderPatchDataset(Dataset):
                         crop = torch.from_numpy(img[x:x+self.width, y:y+self.height])
 
                         # whitten
-                        self.images[counter, :, :] = crop - crop.mean()
+                        self.images[counter, :, :] = (crop - crop.mean()) / 255.
 
                         counter += 1

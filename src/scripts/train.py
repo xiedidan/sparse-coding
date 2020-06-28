@@ -6,7 +6,7 @@ import torch
 from src.model.SparseNet import SparseNet
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from src.model.FolderDataset import FolderPatchDataset
+from src.model.ImageDataset import NatPatchDataset
 from src.utils.cmd_line import parse_args
 from src.scripts.plotting import plot_rf
 
@@ -19,7 +19,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # create net
 sparse_net = SparseNet(arg.n_neuron, arg.size, R_lr=arg.r_learning_rate, lmda=arg.reg, device=device)
 # load data
-dataloader = DataLoader(FolderPatchDataset(arg.batch_size, arg.size, arg.size), batch_size=250)
+dataloader = DataLoader(NatPatchDataset(arg.batch_size, arg.size, arg.size), batch_size=250)
 # train
 optim = torch.optim.SGD([{'params': sparse_net.U.weight, "lr": arg.learning_rate}])
 for e in range(arg.epoch):

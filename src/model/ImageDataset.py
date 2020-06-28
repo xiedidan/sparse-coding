@@ -41,3 +41,4 @@ class NatPatchDataset(Dataset):
                 crop = torch.tensor(img[x:x+self.width, y:y+self.height])
                 self.images[counter, :, :] = crop - crop.mean()
                 counter += 1
+                

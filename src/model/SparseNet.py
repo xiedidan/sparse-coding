@@ -23,7 +23,7 @@ class SparseNet(nn.Module):
         self.R = torch.zeros((img_batch.shape[0], self.K), requires_grad=True, device=self.device)
         converged = False
         # update R
-        optim = torch.optim.SGD([{'params': self.R, "lr": self.R_lr}])
+        optim = torch.optim.Adam([{'params': self.R, "lr": self.R_lr}])
         # train
         while not converged:
             old_R = self.R.clone().detach()
