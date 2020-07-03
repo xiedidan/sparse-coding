@@ -11,33 +11,49 @@ class SparseNet(nn.Module):
         self.M = M
         self.R_lr = R_lr
         self.lmda = lmda
+        
         # synaptic weights
         self.device = torch.device("cpu") if device is None else device
         self.U = nn.Linear(self.K, self.M ** 2, bias=False).to(self.device)
+        
         # responses
         self.R = None
         self.normalize_weights()
+        
+        self.r_loss = None
 
     def ista_(self, img_batch):
         # create R
         self.R = torch.zeros((img_batch.shape[0], self.K), requires_grad=True, device=self.device)
+        self.r_loss = torch.zeros_like(img_batch)
+        
         converged = False
+        
         # update R
         optim = torch.optim.Adam([{'params': self.R, "lr": self.R_lr}])
+        
         # train
         while not converged:
             old_R = self.R.clone().detach()
+            
             # pred
             pred = self.U(self.R)
+            
             # loss
-            loss = ((img_batch - pred) ** 2).sum()
+            loss = ((img_batch - pred) ** 2)
+            self.r_loss = loss.cpu().detach()
+            loss = loss.sum()
             loss.backward()
+            
             # update R in place
             optim.step()
+            
             # zero grad
             self.zero_grad()
+            
             # prox
             self.R.data = SparseNet.soft_thresholding_(self.R, self.lmda)
+            
             # convergence
             converged = torch.norm(self.R - old_R) / torch.norm(old_R) < 0.01
 
@@ -45,6 +61,7 @@ class SparseNet(nn.Module):
     def soft_thresholding_(x, alpha):
         with torch.no_grad():
             rtn = F.relu(x - alpha) - F.relu(-x - alpha)
+            
         return rtn.data
 
     def zero_grad(self):
@@ -58,8 +75,10 @@ class SparseNet(nn.Module):
     def forward(self, img_batch):
         # first fit
         self.ista_(img_batch)
+        
         # now predict again
         pred = self.U(self.R)
+        
         return pred
 
 

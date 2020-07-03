@@ -26,7 +26,7 @@ sparse_net = SparseNet(arg.n_neuron, arg.size, R_lr=arg.r_learning_rate, lmda=ar
 # sparse_net = nn.DataParallel(sparse_net)
 
 # load data
-dataloader = DataLoader(FolderPatchDataset(arg.size, arg.size, N=arg.number, folder=arg.root_path), batch_size=arg.batch_size, num_workers=4)
+dataloader = DataLoader(FolderPatchDataset(arg.size, arg.size, N=arg.number, folder=arg.root_path), batch_size=arg.batch_size, num_workers=8)
 
 # train
 # optim = torch.optim.SGD([{'params': sparse_net.U.weight, "lr": arg.learning_rate}])

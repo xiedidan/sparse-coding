@@ -1,3 +1,4 @@
+*.ckpt
 trained_models
 runs
 

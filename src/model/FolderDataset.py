@@ -10,22 +10,45 @@ import numpy as np
 import cv2
 from tqdm import tqdm
 
-def crop_img(img, w=128, h=128, N=0, border=4, width=10, height=10):
+def random_crop_img(img, w=128, h=128, N=0, border=4, width=10, height=10, whiten=False):
     patches = np.zeros((N, height, width))
     
     for j in range(N):
         x = np.random.randint(border, w - width - border)
         y = np.random.randint(border, h - height - border)
 
-        crop = img[x:x+width, y:y+height].copy()
+        crop = img[y:y+height, x:x+width].copy()
+        
+        if whiten:
+            patches[j, :, :] = crop - crop.mean()
+        else:
+            patches[j, :, :] = crop
+        
+    return patches
 
-        patches[j, :, :] = crop - crop.mean()
+def crop_img(img, w=128, h=128, N=0, border=4, width=10, height=10, whiten=False):
+    patches = np.zeros((N, height, width))
+    
+    cols = (w - 2 * border) // width
+    rows = (h - 2 * border) // height
+    
+    for i in range(rows):
+        for j in range(cols):
+            crop = img[
+                i*height+border:(i+1)*height+border,
+                j*width+border:(j+1)*width+border
+            ]
+            
+            if whiten:
+                patches[i*cols+j, :, :] = crop - crop.mean()
+            else:
+                patches[i*cols+j, :, :] = crop
         
     return patches
 
 class FolderPatchDataset(Dataset):
 
-    def __init__(self, width:int, height:int, N:int=0, border:int=4, folder:str='./', fmt:str='.bmp', training=True):
+    def __init__(self, width:int, height:int, N:int=0, border:int=4, folder:str='./', fmt:str='.bmp', training=True, whiten=False):
         super(FolderPatchDataset, self).__init__()
         self.N = N
         self.width = width
@@ -34,6 +57,7 @@ class FolderPatchDataset(Dataset):
         self.folder = folder
         self.fmt = fmt
         self.training = training
+        self.whiten = whiten
         
         # holder
         self.images = None
@@ -54,51 +78,61 @@ class FolderPatchDataset(Dataset):
         for filename in filenames:
             if self.fmt in filename:
                 image_filenames.append(filename)
-                
+        
+        self.image_filenames = image_filenames
         n_img = len(image_filenames)
         
         imgs = [cv2.imread(os.path.join(self.folder, filename)) for filename in image_filenames]
         imgs = [cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) for img in imgs]
         
         h, w = imgs[0].shape
+        self.h = h
+        self.w = w
         
-        self.images = torch.zeros((self.N * n_img, self.width, self.height))
-        
-        counter = 0
+        cols = (w - 2 * self.border) // self.width
+        rows = (h - 2 * self.border) // self.height
+        self.cols = cols
+        self.rows = rows
+        self.N = cols * rows
         
         if self.training:
+            crop_wrapper = partial(
+                random_crop_img,
+                w=w, h=h,
+                N=self.N,
+                border=self.border,
+                width=self.width, height=self.height,
+                whiten=True
+            )
+            
+            pool = mp.Pool()
+
+            images = list(tqdm(
+                pool.imap(crop_wrapper, imgs),
+                total=len(imgs),
+                file=sys.stdout
+            ))
+            
+            self.images = torch.from_numpy(np.concatenate(images))
+        else:
             crop_wrapper = partial(
                 crop_img,
                 w=w, h=h,
                 N=self.N,
                 border=self.border,
-                width=self.width, height=self.height
+                width=self.width, height=self.height,
+                whiten=True
             )
             
-            pool = mp.Pool(8)
+            pool = mp.Pool()
 
             images = list(tqdm(
-                pool.imap_unordered(crop_wrapper, imgs),
+                pool.imap(crop_wrapper, imgs),
                 total=len(imgs),
                 file=sys.stdout
             ))
             
-            self.images = torch.from_numpy(np.concatenate(images)) / 255.
-        else:
-            for img in tqdm(imgs):
-                cols = (w - 2 * self.border) // self.width
-                rows = (h - 2 * self.border) // self.height
-
-                self.N = cols * rows
-
-                for i in range(cols):
-                    for j in range(rows):
-                        x = self.border + i * self.width
-                        y = self.border + j * self.height
-
-                        crop = torch.from_numpy(img[x:x+self.width, y:y+self.height])
-
-                        # whitten
-                        self.images[counter, :, :] = (crop - crop.mean()) / 255.
-
-                        counter += 1
+            self.images = torch.from_numpy(np.concatenate(images))
+            
+        self.images /= 255.
+        
